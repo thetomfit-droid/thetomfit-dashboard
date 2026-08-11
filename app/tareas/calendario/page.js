@@ -88,7 +88,7 @@ export default function CalendarioPage() {
       map[t.fecha_limite].push({
         id: t.id,
         titulo: t.titulo,
-        hora_inicio: null,
+        hora_inicio: t.hora || null,
         hora_fin: null,
         tipo: "tarea",
         completado: t.estado === "Terminada",
