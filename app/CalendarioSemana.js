@@ -5,23 +5,25 @@
               <span className="num">{N.getDate()}</span>
             </div>
 
-            {i.length===0&&<div className="muted"style={{fontSize:11}}>Sin eventos</div>}
+            <div className="cal-day-items">
+              {i.length===0&&<div className="muted"style={{fontSize:11}}>Sin eventos</div>}
 
-            {i.map(a=><div key={a.id}className={"cal-item cal-item-"+(a.tipo||"personalizado")+(a.completado?" done":"")}onClick={()=>l(a)}>
-                {(a.hora_inicio||a.hora_fin)&&<span className="cal-time">
-                    {s(a.hora_inicio)}
-                    {a.hora_fin?" – "+s(a.hora_fin):""}
-                  </span>}
-                <span className="cal-title">{a.titulo}</span>
-                <div className="cal-item-actions">
-                  <button className="edit-link"onClick={t=>{t.stopPropagation(),c(a)}}>
-                    {a.completado?"Deshacer":"Hecho"}
-                  </button>
-                  <button className="edit-link"onClick={t=>{t.stopPropagation(),r(a)}}>
-                    Eliminar
-                  </button>
-                </div>
-              </div>)}
+              {i.map(a=><div key={(a._source||"evento")+"-"+a.id}className={"cal-item cal-item-"+(a.tipo||"personalizado")+(a.completado?" done":"")}onClick={()=>l(a)}>
+                  {(a.hora_inicio||a.hora_fin)&&<span className="cal-time">
+                      {s(a.hora_inicio)}
+                      {a.hora_fin?" – "+s(a.hora_fin):""}
+                    </span>}
+                  <span className="cal-title">{a.titulo}</span>
+                  <div className="cal-item-actions">
+                    <button className="edit-link"onClick={t=>{t.stopPropagation(),c(a)}}>
+                      {a.completado?"Deshacer":"Hecho"}
+                    </button>
+                    <button className="edit-link"onClick={t=>{t.stopPropagation(),r(a)}}>
+                      Eliminar
+                    </button>
+                  </div>
+                </div>)}
+            </div>
 
             <button className="cal-add-day"onClick={()=>d(n)}>
               + Agregar
