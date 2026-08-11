@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
-const ESTADOS = ["Pendiente", "En proceso", "Terminada"];
+const ESTADOS = ["Pendiente", "En proceso", "Terminada", "Siempre"];
 
 const DIAS_SEMANA = [
   { value: 1, label: "Lunes" },
