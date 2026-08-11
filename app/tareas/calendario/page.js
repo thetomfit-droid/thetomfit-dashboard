@@ -12,6 +12,7 @@ const LEYENDA = [
   { tipo: "stories", label: "Stories" },
   { tipo: "skool", label: "Skool" },
   { tipo: "calendly", label: "Calendly" },
+  { tipo: "google", label: "Google Calendar" },
   { tipo: "personalizado", label: "Personal" },
   { tipo: "tarea", label: "Tarea (fecha límite)" },
 ];
