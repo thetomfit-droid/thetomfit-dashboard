@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../../lib/supabaseClient";
-import CalendarioSemana from "../../CalendarioSemana";
+import CalendarioMes from "../../CalendarioMes";
 import EventoCalendarioForm from "../../EventoCalendarioForm";
 import TareaForm from "../../TareaForm";
 
@@ -14,7 +14,7 @@ const LEYENDA = [
   { tipo: "calendly", label: "Calendly" },
   { tipo: "google", label: "Google Calendar" },
   { tipo: "personalizado", label: "Personal" },
-  { tipo: "tarea", label: "Tarea (fecha límite)" },
+  { tipo: "tarea", label: "Tarea" },
 ];
 
 function toISO(d) {
@@ -24,17 +24,54 @@ function toISO(d) {
   return `${y}-${m}-${day}`;
 }
 
-function inicioDeSemana(d) {
-  const date = new Date(d);
-  const dow = date.getDay();
-  const diff = dow === 0 ? -6 : 1 - dow;
-  date.setDate(date.getDate() + diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
+function hoyISO() {
+  return toISO(new Date());
+}
+
+function inicioDeMes(d) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function construirGrilla(mesCursor) {
+  const year = mesCursor.getFullYear();
+  const month = mesCursor.getMonth();
+  const primerDiaMes = new Date(year, month, 1);
+  const offsetLunes = (primerDiaMes.getDay() + 6) % 7; // 0=lunes...6=domingo
+  const diasEnMes = new Date(year, month + 1, 0).getDate();
+  const semanasNecesarias = Math.ceil((offsetLunes + diasEnMes) / 7);
+  const totalCeldas = semanasNecesarias * 7;
+  const inicioGrilla = new Date(year, month, 1 - offsetLunes);
+
+  const celdas = [];
+  for (let i = 0; i < totalCeldas; i++) {
+    const d = new Date(inicioGrilla);
+    d.setDate(inicioGrilla.getDate() + i);
+    celdas.push({ fecha: toISO(d), numero: d.getDate(), enMes: d.getMonth() === month });
+  }
+  return celdas;
+}
+
+function tituloMes(mesCursor) {
+  const t = mesCursor.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function tituloDia(fecha) {
+  const t = new Date(fecha + "T00:00:00").toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function hora(h) {
+  return h ? h.slice(0, 5) : "";
 }
 
 export default function CalendarioPage() {
-  const [semanaInicio, setSemanaInicio] = useState(() => inicioDeSemana(new Date()));
+  const [mesCursor, setMesCursor] = useState(() => inicioDeMes(new Date()));
+  const [seleccionado, setSeleccionado] = useState(() => hoyISO());
   const [eventos, setEventos] = useState([]);
   const [tareas, setTareas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,22 +79,16 @@ export default function CalendarioPage() {
   const [editingEvento, setEditingEvento] = useState(null);
   const [editingTarea, setEditingTarea] = useState(null);
 
-  const dias = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(semanaInicio);
-      d.setDate(d.getDate() + i);
-      arr.push(toISO(d));
-    }
-    return arr;
-  }, [semanaInicio]);
+  const grilla = useMemo(() => construirGrilla(mesCursor), [mesCursor]);
+  const rangoInicio = grilla[0].fecha;
+  const rangoFin = grilla[grilla.length - 1].fecha;
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     const [eventosRes, tareasRes] = await Promise.all([
-      supabase.from("calendario_eventos").select("*").gte("fecha", dias[0]).lte("fecha", dias[6]).order("hora_inicio", { ascending: true }),
-      supabase.from("tareas").select("*").gte("fecha_limite", dias[0]).lte("fecha_limite", dias[6]),
+      supabase.from("calendario_eventos").select("*").gte("fecha", rangoInicio).lte("fecha", rangoFin).order("hora_inicio", { ascending: true }),
+      supabase.from("tareas").select("*").gte("fecha_limite", rangoInicio).lte("fecha_limite", rangoFin),
     ]);
     setLoading(false);
     if (eventosRes.error) {
@@ -70,7 +101,7 @@ export default function CalendarioPage() {
     }
     setEventos(eventosRes.data || []);
     setTareas(tareasRes.data || []);
-  }, [dias]);
+  }, [rangoInicio, rangoFin]);
 
   useEffect(() => {
     load();
@@ -98,6 +129,17 @@ export default function CalendarioPage() {
     });
     return map;
   }, [eventos, tareas]);
+
+  const diasConItems = useMemo(() => new Set(Object.keys(eventosPorDia).filter((f) => eventosPorDia[f].length > 0)), [eventosPorDia]);
+
+  const itemsDelDia = useMemo(() => {
+    const items = eventosPorDia[seleccionado] || [];
+    return items.slice().sort((a, b) => {
+      const ha = a.hora_inicio || "99:99";
+      const hb = b.hora_inicio || "99:99";
+      return ha.localeCompare(hb);
+    });
+  }, [eventosPorDia, seleccionado]);
 
   async function handleToggleDone(item) {
     if (item._source === "tarea") {
@@ -145,44 +187,38 @@ export default function CalendarioPage() {
     setEditingEvento(item);
   }
 
-  function handleAdd(fecha) {
-    setEditingEvento({ fecha });
+  function handleAdd() {
+    setEditingEvento({ fecha: seleccionado });
+  }
+
+  function seleccionarDia(fecha) {
+    setSeleccionado(fecha);
+    const mesDelDia = inicioDeMes(new Date(fecha + "T00:00:00"));
+    if (mesDelDia.getTime() !== mesCursor.getTime()) {
+      setMesCursor(mesDelDia);
+    }
   }
 
   function irHoy() {
-    setSemanaInicio(inicioDeSemana(new Date()));
+    const hoy = hoyISO();
+    setSeleccionado(hoy);
+    setMesCursor(inicioDeMes(new Date()));
   }
-  function semanaAnterior() {
-    const d = new Date(semanaInicio);
-    d.setDate(d.getDate() - 7);
-    setSemanaInicio(d);
+  function mesAnterior() {
+    setMesCursor((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
   }
-  function semanaSiguiente() {
-    const d = new Date(semanaInicio);
-    d.setDate(d.getDate() + 7);
-    setSemanaInicio(d);
+  function mesSiguiente() {
+    setMesCursor((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
   }
-
-  const rangoLabel = (() => {
-    const inicio = new Date(dias[0] + "T00:00:00");
-    const fin = new Date(dias[6] + "T00:00:00");
-    const f = (x) => x.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
-    return `${f(inicio)} — ${f(fin)}`;
-  })();
 
   return (
     <>
       <div className="topbar" style={{ marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button className="btn btn-secondary" onClick={semanaAnterior}>← Semana anterior</button>
+          <button className="btn btn-secondary" onClick={mesAnterior}>← Mes anterior</button>
           <button className="btn btn-secondary" onClick={irHoy}>Hoy</button>
-          <button className="btn btn-secondary" onClick={semanaSiguiente}>Semana siguiente →</button>
-          <span className="muted" style={{ fontSize: 13, marginLeft: 6 }}>{rangoLabel}</span>
-        </div>
-        <div className="topbar-actions">
-          <button className="btn btn-primary" onClick={() => setEditingEvento({})}>
-            + Agregar evento
-          </button>
+          <button className="btn btn-secondary" onClick={mesSiguiente}>Mes siguiente →</button>
+          <span className="muted" style={{ fontSize: 13, marginLeft: 6 }}>{tituloMes(mesCursor)}</span>
         </div>
       </div>
 
@@ -196,18 +232,51 @@ export default function CalendarioPage() {
       </div>
 
       {error && <div className="login-error" style={{ marginBottom: 12 }}>{error}</div>}
-      {loading ? (
-        <div>Cargando calendario...</div>
-      ) : (
-        <CalendarioSemana
-          dias={dias}
-          eventosPorDia={eventosPorDia}
-          onToggleDone={handleToggleDone}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onAdd={handleAdd}
-        />
-      )}
+
+      <CalendarioMes
+        dias={grilla}
+        hoy={hoyISO()}
+        seleccionado={seleccionado}
+        diasConItems={diasConItems}
+        onSelectDay={seleccionarDia}
+      />
+
+      <div className="cal-day-panel">
+        <div className="cal-day-panel-header">
+          <h3>{tituloDia(seleccionado)}</h3>
+          <button className="btn btn-primary" onClick={handleAdd}>+ Agregar</button>
+        </div>
+
+        {loading ? (
+          <div className="muted">Cargando...</div>
+        ) : itemsDelDia.length === 0 ? (
+          <div className="muted">Sin eventos ni tareas para este día.</div>
+        ) : (
+          itemsDelDia.map((item) => (
+            <div
+              key={(item._source || "evento") + "-" + item.id}
+              className={"cal-item cal-item-" + (item.tipo || "personalizado") + (item.completado ? " done" : "")}
+              onClick={() => handleEdit(item)}
+            >
+              {(item.hora_inicio || item.hora_fin) && (
+                <span className="cal-time">
+                  {hora(item.hora_inicio)}
+                  {item.hora_fin ? " – " + hora(item.hora_fin) : ""}
+                </span>
+              )}
+              <span className="cal-title">{item.titulo}</span>
+              <div className="cal-item-actions">
+                <button className="edit-link" onClick={(e) => { e.stopPropagation(); handleToggleDone(item); }}>
+                  {item.completado ? "Deshacer" : "Hecho"}
+                </button>
+                <button className="edit-link" onClick={(e) => { e.stopPropagation(); handleDelete(item); }}>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
       {editingEvento !== null && (
         <EventoCalendarioForm
