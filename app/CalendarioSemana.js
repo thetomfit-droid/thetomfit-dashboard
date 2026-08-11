@@ -1,4 +1,4 @@
-"use client";const k=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];function s(o){return o?o.slice(0,5):""}function b(){return new Date().toISOString().slice(0,10)}export default function g({dias:o,eventosPorDia:e,onToggleDone:c,onEdit:l,onDelete:r,onAdd:d}){const m=b();return<div className="cal-week">
+"use client";const k=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];function s(o){return o?o.slice(0,5):""}function b(){const e=new Date(),t=String(e.getMonth()+1).padStart(2,"0"),o=String(e.getDate()).padStart(2,"0");return`${e.getFullYear()}-${t}-${o}`}export default function g({dias:o,eventosPorDia:e,onToggleDone:c,onEdit:l,onDelete:r,onAdd:d}){const m=b();return<div className="cal-week">
       {o.map((n,u)=>{const i=(e[n]||[]).slice().sort((a,t)=>{const y=a.hora_inicio||"99:99",h=t.hora_inicio||"99:99";return y.localeCompare(h)}),p=n===m,N=new Date(n+"T00:00:00");return<div className={"cal-day"+(p?" today":"")}key={n}>
             <div className="cal-day-header">
               <span>{k[u]}</span>
