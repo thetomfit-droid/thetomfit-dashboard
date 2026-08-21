@@ -1,9 +1,63 @@
-"use client";import{useMemo as N,useState as c}from"react";const f={Pagado:"alta","En cuotas":"mediaalta","Falta pago":"baja2"},C={"Cliente Actual":"alta",Pausa:"media","Ex cliente":"baja"},m={"Falta pago":0,"En cuotas":1,Pagado:2};function v(a){return a?new Date(a+"T00:00:00").toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit",year:"numeric"}):"—"}export default function E({pagos:a,onEdit:i,onRegistrarPago:u}){const[s,h]=c(""),[n,b]=c("Todos"),r=N(()=>{let t=[...a];if(n!=="Todos"&&(t=t.filter(o=>o.estado_pago===n)),s.trim()){const o=s.trim().toLowerCase();t=t.filter(e=>[e.nombre,e.correo,e.servicio,e.notas].filter(Boolean).some(d=>d.toLowerCase().includes(o)))}return t.sort((o,e)=>{var d,l;return((d=m[o.estado_pago])!=null?d:9)-((l=m[e.estado_pago])!=null?l:9)}),t},[a,s,n]),g=["Todos","Falta pago","En cuotas","Pagado"];return<>
+"use client";
+import { useMemo, useState } from "react";
+
+const ESTADO_PAGO_CLASS = { Pagado: "alta", "En cuotas": "mediaalta", "Falta pago": "baja2" };
+const CLIENTE_ESTADO_CLASS = { "Cliente Actual": "alta", Pausa: "media", "Ex cliente": "baja" };
+
+const FILTROS = [
+  { label: "Falta pago", campo: "estado_pago", valor: "Falta pago" },
+  { label: "En cuotas", campo: "estado_pago", valor: "En cuotas" },
+  { label: "Cliente actual", campo: "cliente_estado", valor: "Cliente Actual" },
+  { label: "Pausa", campo: "cliente_estado", valor: "Pausa" },
+];
+
+function formatoFecha(f) {
+  return f ? new Date(f + "T00:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+}
+
+export default function PagosTable({ pagos, onEdit, onRegistrarPago }) {
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroActivo, setFiltroActivo] = useState(null);
+
+  const filas = useMemo(() => {
+    let t = [...pagos];
+
+    if (filtroActivo) {
+      const f = FILTROS.find((x) => x.label === filtroActivo);
+      if (f) t = t.filter((row) => row[f.campo] === f.valor);
+    }
+
+    if (busqueda.trim()) {
+      const q = busqueda.trim().toLowerCase();
+      t = t.filter((row) => [row.nombre, row.correo, row.servicio, row.notas].filter(Boolean).some((v) => v.toLowerCase().includes(q)));
+    }
+
+    // Orden por defecto: quien pagó (inició) más recientemente aparece primero.
+    t.sort((a, b) => {
+      const A = a.inicio_pago || "";
+      const B = b.inicio_pago || "";
+      if (!A && !B) return 0;
+      if (!A) return 1;
+      if (!B) return -1;
+      return B.localeCompare(A);
+    });
+
+    return t;
+  }, [pagos, busqueda, filtroActivo]);
+
+  function toggleFiltro(label) {
+    setFiltroActivo((actual) => (actual === label ? null : label));
+  }
+
+  return (
+    <>
       <div className="toolbar">
-        <input type="text"placeholder="Buscar por nombre, correo, servicio, notas..."value={s}onChange={t=>h(t.target.value)}/>
-        {g.map(t=><button key={t}className={"filter-btn"+(n===t?" active":"")}onClick={()=>b(t)}>
-            {t}
-          </button>)}
+        <input type="text" placeholder="Buscar por nombre, correo, servicio, notas..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+        {FILTROS.map((f) => (
+          <button key={f.label} className={"filter-btn" + (filtroActivo === f.label ? " active" : "")} onClick={() => toggleFiltro(f.label)}>
+            {f.label}
+          </button>
+        ))}
       </div>
 
       <table>
@@ -19,42 +73,36 @@
             <th>Vencimiento</th>
             <th>Estado</th>
             <th>Notas</th>
-            <th/>
+            <th />
           </tr>
         </thead>
         <tbody>
-          {r.map(t=><tr key={t.id}>
-              <td className="name-cell">{t.nombre}</td>
+          {filas.map((row) => (
+            <tr key={row.id}>
+              <td className="name-cell">{row.nombre}</td>
               <td>
-                <span className={"pill "+(C[t.cliente_estado]||"baja")}>
-                  {t.cliente_estado||"—"}
-                </span>
+                <span className={"pill " + (CLIENTE_ESTADO_CLASS[row.cliente_estado] || "baja")}>{row.cliente_estado || "—"}</span>
               </td>
-              <td className="muted">{t.correo||"—"}</td>
-              <td>{t.servicio||"—"}</td>
-              <td>{t.cuotas||"—"}</td>
-              <td>{t.dinero_recolectado||"—"}</td>
-              <td>{t.metodo_pago||"—"}</td>
-              <td>{v(t.vencimiento)}</td>
+              <td className="muted">{row.correo || "—"}</td>
+              <td>{row.servicio || "—"}</td>
+              <td>{row.cuotas || "—"}</td>
+              <td>{row.dinero_recolectado || "—"}</td>
+              <td>{row.metodo_pago || "—"}</td>
+              <td>{formatoFecha(row.vencimiento)}</td>
               <td>
-                <span className={"pill "+(f[t.estado_pago]||"baja")}>
-                  {t.estado_pago||"—"}
-                </span>
+                <span className={"pill " + (ESTADO_PAGO_CLASS[row.estado_pago] || "baja")}>{row.estado_pago || "—"}</span>
               </td>
-              <td style={{maxWidth:260}}>
-                {t.notas?<span className="muted">{t.notas}</span>:<span className="muted">—</span>}
-              </td>
+              <td style={{ maxWidth: 260 }}>{row.notas ? <span className="muted">{row.notas}</span> : <span className="muted">—</span>}</td>
               <td>
-                <button className="edit-link"onClick={()=>i(t)}>
-                  Editar
-                </button>
+                <button className="edit-link" onClick={() => onEdit(row)}>Editar</button>
                 {" · "}
-                <button className="edit-link"onClick={()=>u(t)}>
-                  + Pago
-                </button>
+                <button className="edit-link" onClick={() => onRegistrarPago(row)}>+ Pago</button>
               </td>
-            </tr>)}
+            </tr>
+          ))}
         </tbody>
       </table>
-      <div className="note-count">{r.length} de {a.length} registros</div>
-    </>}
+      <div className="note-count">{filas.length} de {pagos.length} registros</div>
+    </>
+  );
+}
