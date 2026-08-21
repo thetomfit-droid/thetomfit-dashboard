@@ -1,5 +1,22 @@
-"use client";import A from"next/link";import{usePathname as I}from"next/navigation";const L=[{href:"/ventas/videollamadas",label:"Datos de videollamadas"},{href:"/ventas/instagram",label:"Setting Instagram"},{href:"/ventas/kpis-ads",label:"KPI's Ads"},{href:"/ventas/recontactar",label:"Recontactar"},{href:"/ventas/calendly",label:"Calendly"}];export default function N(){const e=I();return<div className="ventas-tabs">
-      {L.map(a=><A key={a.href}href={a.href}className={"ventas-tab"+(e===a.href?" active":"")}>
-          {a.label}
-        </A>)}
-    </div>}
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const TABS = [
+  { href: "/ventas/videollamadas", label: "Datos de videollamadas" },
+  { href: "/ventas/recontactar", label: "Recontactar" },
+  { href: "/ventas/calendly", label: "Calendly" },
+];
+
+export default function VentasTabs() {
+  const pathname = usePathname();
+  return (
+    <div className="ventas-tabs">
+      {TABS.map((tab) => (
+        <Link key={tab.href} href={tab.href} className={"ventas-tab" + (pathname === tab.href ? " active" : "")}>
+          {tab.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
