@@ -1,24 +1,119 @@
-"use client";import{useEffect as f,useState as s,useCallback as S}from"react";import{supabase as N}from"../../../lib/supabaseClient";import C from"../../PagosTable";import P from"../../PagoForm";import E from"../../RegistrarPagoForm";function d(e,t,l){return e.filter(o=>o[t]===l).length}function F(e){if(!e)return 0;const t=String(e).match(/\d+([.,]\d+)?/g);return t?t.reduce((l,o)=>l+parseFloat(o.replace(",",".")),0):0}export default function R(){const[e,t]=s([]),[l,o]=s(!1),[u,r]=s(null),[g,c]=s(null),[m,p]=s("");const n=S(async()=>{o(!0),p("");const{data:a,error:i}=await N.from("pagos_clientes").select("*").order("nombre",{ascending:!0});if(o(!1),i){p("No se pudieron cargar los pagos: "+i.message);return}t(a||[])},[]);f(()=>{n()},[n]);const v=e.reduce((a,i)=>a+F(i.dinero_recolectado),0),b=[{label:"Total de registros",value:e.length,cls:""},{label:"Total recolectado",value:"€"+v.toLocaleString("es-ES"),cls:"alta"},{label:"Falta pago",value:d(e,"estado_pago","Falta pago"),cls:"baja2"},{label:"En cuotas",value:d(e,"estado_pago","En cuotas"),cls:"mediaalta"},{label:"Clientes actuales",value:d(e,"cliente_estado","Cliente Actual"),cls:"cliente"}];return<>
-      <div className="topbar"style={{marginBottom:4}}>
-        <div/>
+"use client";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { supabase } from "../../../lib/supabaseClient";
+import PagosTable from "../../PagosTable";
+import PagoForm from "../../PagoForm";
+import RegistrarPagoForm from "../../RegistrarPagoForm";
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+function contar(lista, campo, valor) {
+  return lista.filter((o) => o[campo] === valor).length;
+}
+
+function sumaDinero(valor) {
+  if (!valor) return 0;
+  const nums = String(valor).match(/\d+([.,]\d+)?/g);
+  return nums ? nums.reduce((s, n) => s + parseFloat(n.replace(",", ".")), 0) : 0;
+}
+
+// El año guardado en "cumpleanos" no importa (a veces es el año real, a veces 2026
+// puesto a propósito para que Notion notificara) — solo cuentan mes y día.
+function mesDia(fechaISO) {
+  const partes = fechaISO.split("-");
+  return { mes: parseInt(partes[1], 10), dia: parseInt(partes[2], 10) };
+}
+
+function formatoCumple(fechaISO) {
+  const { mes, dia } = mesDia(fechaISO);
+  return `${dia} de ${MESES[mes - 1]}`;
+}
+
+export default function ClientesTotalesPage() {
+  const [pagos, setPagos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [editingPago, setEditingPago] = useState(null);
+  const [registrandoPago, setRegistrandoPago] = useState(null);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    const { data, error: err } = await supabase.from("pagos_clientes").select("*").order("nombre", { ascending: true });
+    setLoading(false);
+    if (err) {
+      setError("No se pudieron cargar los pagos: " + err.message);
+      return;
+    }
+    setPagos(data || []);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const totalRecolectado = pagos.reduce((s, p) => s + sumaDinero(p.dinero_recolectado), 0);
+  const tarjetas = [
+    { label: "Total de registros", value: pagos.length, cls: "" },
+    { label: "Total recolectado", value: "€" + totalRecolectado.toLocaleString("es-ES"), cls: "alta" },
+    { label: "Falta pago", value: contar(pagos, "estado_pago", "Falta pago"), cls: "baja2" },
+    { label: "En cuotas", value: contar(pagos, "estado_pago", "En cuotas"), cls: "mediaalta" },
+    { label: "Clientes actuales", value: contar(pagos, "cliente_estado", "Cliente Actual"), cls: "cliente" },
+  ];
+
+  const cumpleanos = useMemo(() => {
+    return pagos
+      .filter((p) => p.cumpleanos)
+      .map((p) => ({ ...p, _md: mesDia(p.cumpleanos) }))
+      .sort((a, b) => a._md.mes - b._md.mes || a._md.dia - b._md.dia);
+  }, [pagos]);
+
+  return (
+    <>
+      <div className="topbar" style={{ marginBottom: 4 }}>
+        <div />
         <div className="topbar-actions">
-          <button className="btn btn-primary"onClick={()=>r({})}>
+          <button className="btn btn-primary" onClick={() => setEditingPago({})}>
             + Agregar pago
           </button>
         </div>
       </div>
 
       <div className="cards">
-        {b.map(a=><div className={"card "+a.cls}key={a.label}>
-            <div className="label">{a.label}</div>
-            <div className="value">{a.value}</div>
-          </div>)}
+        {tarjetas.map((t) => (
+          <div className={"card " + t.cls} key={t.label}>
+            <div className="label">{t.label}</div>
+            <div className="value">{t.value}</div>
+          </div>
+        ))}
       </div>
 
-      {m&&<div className="login-error"style={{marginBottom:12}}>{m}</div>}
-      {l?<div>Cargando pagos...</div>:<C pagos={e}onEdit={a=>r(a)}onRegistrarPago={a=>c(a)}/>}
+      {cumpleanos.length > 0 && (
+        <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", margin: "18px 0", boxShadow: "0 1px 2px #5a2d820f", maxWidth: 420 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#2e1c3d", marginBottom: 10 }}>Cumpleaños</div>
+          <table>
+            <tbody>
+              {cumpleanos.map((c) => (
+                <tr key={c.id}>
+                  <td style={{ whiteSpace: "nowrap", fontWeight: 700, color: "#2e1c3d" }}>{formatoCumple(c.cumpleanos)}</td>
+                  <td>{c.nombre}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {u!==null&&<P initial={u}onClose={()=>r(null)}onSaved={()=>{r(null),n()}}/>}
+      {error && <div className="login-error" style={{ marginBottom: 12 }}>{error}</div>}
+      {loading ? <div>Cargando pagos...</div> : <PagosTable pagos={pagos} onEdit={(p) => setEditingPago(p)} onRegistrarPago={(p) => setRegistrandoPago(p)} />}
 
-      {g!==null&&<E pago={g}onClose={()=>c(null)}onSaved={()=>{c(null),n()}}/>}
-    </>}
+      {editingPago !== null && (
+        <PagoForm initial={editingPago} onClose={() => setEditingPago(null)} onSaved={() => { setEditingPago(null); load(); }} />
+      )}
+
+      {registrandoPago !== null && (
+        <RegistrarPagoForm pago={registrandoPago} onClose={() => setRegistrandoPago(null)} onSaved={() => { setRegistrandoPago(null); load(); }} />
+      )}
+    </>
+  );
+}
