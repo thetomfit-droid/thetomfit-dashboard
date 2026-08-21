@@ -9,6 +9,7 @@ const FILTROS = [
   { label: "En cuotas", campo: "estado_pago", valor: "En cuotas" },
   { label: "Cliente actual", campo: "cliente_estado", valor: "Cliente Actual" },
   { label: "Pausa", campo: "cliente_estado", valor: "Pausa" },
+  { label: "Vencimiento", campo: null, valor: null },
 ];
 
 function formatoFecha(f) {
@@ -22,9 +23,9 @@ export default function PagosTable({ pagos, onEdit, onRegistrarPago }) {
   const filas = useMemo(() => {
     let t = [...pagos];
 
-    if (filtroActivo) {
+    if (filtroActivo && filtroActivo !== "Vencimiento") {
       const f = FILTROS.find((x) => x.label === filtroActivo);
-      if (f) t = t.filter((row) => row[f.campo] === f.valor);
+      if (f && f.campo) t = t.filter((row) => row[f.campo] === f.valor);
     }
 
     if (busqueda.trim()) {
@@ -32,15 +33,27 @@ export default function PagosTable({ pagos, onEdit, onRegistrarPago }) {
       t = t.filter((row) => [row.nombre, row.correo, row.servicio, row.notas].filter(Boolean).some((v) => v.toLowerCase().includes(q)));
     }
 
-    // Orden por defecto: quien pagó (inició) más recientemente aparece primero.
-    t.sort((a, b) => {
-      const A = a.inicio_pago || "";
-      const B = b.inicio_pago || "";
-      if (!A && !B) return 0;
-      if (!A) return 1;
-      if (!B) return -1;
-      return B.localeCompare(A);
-    });
+    if (filtroActivo === "Vencimiento") {
+      // El que está más pronto a vencer aparece primero; sin fecha, al final.
+      t.sort((a, b) => {
+        const A = a.vencimiento || "";
+        const B = b.vencimiento || "";
+        if (!A && !B) return 0;
+        if (!A) return 1;
+        if (!B) return -1;
+        return A.localeCompare(B);
+      });
+    } else {
+      // Orden por defecto: quien pagó (inició) más recientemente aparece primero.
+      t.sort((a, b) => {
+        const A = a.inicio_pago || "";
+        const B = b.inicio_pago || "";
+        if (!A && !B) return 0;
+        if (!A) return 1;
+        if (!B) return -1;
+        return B.localeCompare(A);
+      });
+    }
 
     return t;
   }, [pagos, busqueda, filtroActivo]);

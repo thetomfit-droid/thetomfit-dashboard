@@ -16,6 +16,7 @@ const LEYENDA = [
   { tipo: "personalizado", label: "Personal" },
   { tipo: "tarea", label: "Tarea" },
   { tipo: "cumpleanos", label: "Cumpleaños" },
+  { tipo: "vencimiento", label: "Vencimiento de cliente" },
 ];
 
 function toISO(d) {
@@ -82,7 +83,7 @@ export default function CalendarioPage() {
   const [seleccionado, setSeleccionado] = useState(() => hoyISO());
   const [eventos, setEventos] = useState([]);
   const [tareas, setTareas] = useState([]);
-  const [cumpleanosClientes, setCumpleanosClientes] = useState([]);
+  const [clientesFechas, setClientesFechas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [editingEvento, setEditingEvento] = useState(null);
@@ -116,26 +117,38 @@ export default function CalendarioPage() {
     load();
   }, [load]);
 
-  // Los cumpleaños de clientes se cargan aparte (tabla pagos_clientes) y una sola vez:
-  // no dependen del mes que se esté mirando, porque se repiten todos los años.
+  // Los cumpleaños y vencimientos de clientes se cargan aparte (tabla pagos_clientes) y
+  // una sola vez: los cumpleaños no dependen del mes que se esté mirando porque se
+  // repiten todos los años; los vencimientos sí son una fecha real y única.
   useEffect(() => {
     supabase
       .from("pagos_clientes")
-      .select("id, nombre, cumpleanos")
+      .select("id, nombre, cumpleanos, vencimiento")
       .then(({ data, error: err }) => {
-        if (!err) setCumpleanosClientes((data || []).filter((c) => c.cumpleanos));
+        if (!err) setClientesFechas(data || []);
       });
   }, []);
 
   const cumpleanosPorMesDia = useMemo(() => {
     const map = {};
-    cumpleanosClientes.forEach((c) => {
+    clientesFechas.forEach((c) => {
+      if (!c.cumpleanos) return;
       const md = mesDiaDesdeISO(c.cumpleanos);
       if (!map[md]) map[md] = [];
       map[md].push(c.nombre);
     });
     return map;
-  }, [cumpleanosClientes]);
+  }, [clientesFechas]);
+
+  const vencimientosPorFecha = useMemo(() => {
+    const map = {};
+    clientesFechas.forEach((c) => {
+      if (!c.vencimiento) return;
+      if (!map[c.vencimiento]) map[c.vencimiento] = [];
+      map[c.vencimiento].push(c.nombre);
+    });
+    return map;
+  }, [clientesFechas]);
 
   const eventosPorDia = useMemo(() => {
     const map = {};
@@ -158,25 +171,43 @@ export default function CalendarioPage() {
       });
     });
     grilla.forEach((dia) => {
-      const nombres = cumpleanosPorMesDia[mesDiaDesdeISO(dia.fecha)];
-      if (!nombres) return;
-      if (!map[dia.fecha]) map[dia.fecha] = [];
-      nombres.forEach((nombre) => {
-        map[dia.fecha].push({
-          id: "cumple-" + nombre,
-          titulo: "🎂 Cumpleaños de " + nombre,
-          hora_inicio: null,
-          hora_fin: null,
-          tipo: "cumpleanos",
-          completado: false,
-          _source: "cumpleanos",
+      const cumples = cumpleanosPorMesDia[mesDiaDesdeISO(dia.fecha)];
+      if (cumples) {
+        if (!map[dia.fecha]) map[dia.fecha] = [];
+        cumples.forEach((nombre) => {
+          map[dia.fecha].push({
+            id: "cumple-" + nombre,
+            titulo: "🎂 Cumpleaños de " + nombre,
+            hora_inicio: null,
+            hora_fin: null,
+            tipo: "cumpleanos",
+            completado: false,
+            _source: "cumpleanos",
+          });
         });
-      });
+      }
+      const vencen = vencimientosPorFecha[dia.fecha];
+      if (vencen) {
+        if (!map[dia.fecha]) map[dia.fecha] = [];
+        vencen.forEach((nombre) => {
+          map[dia.fecha].push({
+            id: "vence-" + nombre,
+            titulo: "⏰ Vencimiento — " + nombre,
+            hora_inicio: null,
+            hora_fin: null,
+            tipo: "vencimiento",
+            completado: false,
+            _source: "vencimiento",
+          });
+        });
+      }
     });
     return map;
-  }, [eventos, tareas, grilla, cumpleanosPorMesDia]);
+  }, [eventos, tareas, grilla, cumpleanosPorMesDia, vencimientosPorFecha]);
 
   const diasConItems = useMemo(() => new Set(Object.keys(eventosPorDia).filter((f) => eventosPorDia[f].length > 0)), [eventosPorDia]);
+  const diasConCumpleanos = useMemo(() => new Set(Object.keys(eventosPorDia).filter((f) => eventosPorDia[f].some((i) => i.tipo === "cumpleanos"))), [eventosPorDia]);
+  const diasConVencimiento = useMemo(() => new Set(Object.keys(eventosPorDia).filter((f) => eventosPorDia[f].some((i) => i.tipo === "vencimiento"))), [eventosPorDia]);
 
   const itemsDelDia = useMemo(() => {
     const items = eventosPorDia[seleccionado] || [];
@@ -284,6 +315,8 @@ export default function CalendarioPage() {
         hoy={hoyISO()}
         seleccionado={seleccionado}
         diasConItems={diasConItems}
+        diasConCumpleanos={diasConCumpleanos}
+        diasConVencimiento={diasConVencimiento}
         onSelectDay={seleccionarDia}
       />
 
@@ -299,13 +332,13 @@ export default function CalendarioPage() {
           <div className="muted">Sin eventos ni tareas para este día.</div>
         ) : (
           itemsDelDia.map((item) => {
-            const esCumpleanos = item._source === "cumpleanos";
+            const esInformativo = item._source === "cumpleanos" || item._source === "vencimiento";
             return (
               <div
                 key={(item._source || "evento") + "-" + item.id}
                 className={"cal-item cal-item-" + (item.tipo || "personalizado") + (item.completado ? " done" : "")}
-                onClick={esCumpleanos ? undefined : () => handleEdit(item)}
-                style={esCumpleanos ? { cursor: "default" } : undefined}
+                onClick={esInformativo ? undefined : () => handleEdit(item)}
+                style={esInformativo ? { cursor: "default" } : undefined}
               >
                 {(item.hora_inicio || item.hora_fin) && (
                   <span className="cal-time">
@@ -314,7 +347,7 @@ export default function CalendarioPage() {
                   </span>
                 )}
                 <span className="cal-title">{item.titulo}</span>
-                {!esCumpleanos && (
+                {!esInformativo && (
                   <div className="cal-item-actions">
                     <button className="edit-link" onClick={(e) => { e.stopPropagation(); handleToggleDone(item); }}>
                       {item.completado ? "Deshacer" : "Hecho"}
