@@ -1,78 +1,190 @@
-"use client";import{useState as r}from"react";import{supabase as p}from"../lib/supabaseClient";const _=["Seguimiento","Reserva","Reagendar","No cliente","No show","Cliente"],C=["Alta","Media-Alta","Media","Baja","Cliente activo"],N=["Sí","No"],y={nombre:"",telefono:"",instagram:"",pais:"",fecha_llamada:"",estado:"Seguimiento",venta:"No",objeciones:"",observaciones:"",plan_acordado:"",volver_a_contactar:"",prioridad:"Media",fathom_url:""};export default function S({initial:o,onClose:i,onSaved:g}){const s=!!(o&&o.id),[e,f]=r(()=>({...y,...o||{}})),[c,d]=r(!1),[u,v]=r("");function l(a,t){f(n=>({...n,[a]:t}))}async function h(a){a.preventDefault(),d(!0),v("");const t={...e};delete t.id,delete t.created_at,["fecha_llamada","volver_a_contactar"].forEach(m=>{t[m]||(t[m]=null)});const n=s?p.from("leads").update(t).eq("id",o.id):p.from("leads").insert(t),{error:b}=await n;if(d(!1),b){v("No se pudo guardar: "+b.message);return}g()}return<div className="modal-backdrop"onClick={i}>
-      <div className="modal-card"onClick={a=>a.stopPropagation()}>
-        <h2>{s?"Editar lead":"Agregar lead"}</h2>
-        <form onSubmit={h}>
+"use client";
+import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+
+const ESTADOS = ["Seguimiento", "Reserva", "Reagendar", "No cliente", "No show", "Cliente"];
+const PRIORIDADES = ["Alta", "Media-Alta", "Media", "Baja", "Cliente activo"];
+const SI_NO = ["Sí", "No"];
+const IN_OUT = ["In", "Out"];
+
+const VACIO = {
+  nombre: "",
+  telefono: "",
+  instagram: "",
+  pais: "",
+  fecha_contacto: "",
+  fecha_llamada: "",
+  videocall: "",
+  estado: "Seguimiento",
+  venta: "No",
+  inbound_outbound: "",
+  de_donde_viene: "",
+  que_logro_contacto: "",
+  objeciones: "",
+  observaciones: "",
+  plan_acordado: "",
+  volver_a_contactar: "",
+  prioridad: "Media",
+  fathom_url: "",
+};
+
+export default function LeadForm({ initial, onClose, onSaved }) {
+  const esEdicion = !!(initial && initial.id);
+  const [form, setForm] = useState(() => ({ ...VACIO, ...(initial || {}) }));
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  function set(campo, valor) {
+    setForm((f) => ({ ...f, [campo]: valor }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setGuardando(true);
+    setError("");
+
+    const payload = { ...form };
+    delete payload.id;
+    delete payload.created_at;
+    ["fecha_contacto", "fecha_llamada", "volver_a_contactar"].forEach((campo) => {
+      if (!payload[campo]) payload[campo] = null;
+    });
+
+    const query = esEdicion
+      ? supabase.from("leads").update(payload).eq("id", initial.id)
+      : supabase.from("leads").insert(payload);
+
+    const { error: err } = await query;
+    setGuardando(false);
+    if (err) {
+      setError("No se pudo guardar: " + err.message);
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <h2>{esEdicion ? "Editar lead" : "Agregar lead"}</h2>
+        <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <label className="full">
               Nombre
-              <input value={e.nombre}onChange={a=>l("nombre",a.target.value)}required/>
+              <input value={form.nombre} onChange={(e) => set("nombre", e.target.value)} required />
             </label>
             <label>
               Teléfono
-              <input value={e.telefono||""}onChange={a=>l("telefono",a.target.value)}/>
+              <input value={form.telefono || ""} onChange={(e) => set("telefono", e.target.value)} />
             </label>
             <label>
               Instagram
-              <input value={e.instagram||""}onChange={a=>l("instagram",a.target.value)}/>
+              <input value={form.instagram || ""} onChange={(e) => set("instagram", e.target.value)} />
             </label>
             <label>
               País
-              <input value={e.pais||""}onChange={a=>l("pais",a.target.value)}/>
+              <input value={form.pais || ""} onChange={(e) => set("pais", e.target.value)} />
+            </label>
+            <label>
+              Fecha de contacto
+              <input type="date" value={form.fecha_contacto || ""} onChange={(e) => set("fecha_contacto", e.target.value)} />
             </label>
             <label>
               Fecha de llamada
-              <input type="date"value={e.fecha_llamada||""}onChange={a=>l("fecha_llamada",a.target.value)}/>
+              <input type="date" value={form.fecha_llamada || ""} onChange={(e) => set("fecha_llamada", e.target.value)} />
+            </label>
+            <label>
+              ¿Videocall?
+              <select value={form.videocall || ""} onChange={(e) => set("videocall", e.target.value)}>
+                <option value="">—</option>
+                {SI_NO.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
             </label>
             <label>
               Estado
-              <select value={e.estado||""}onChange={a=>l("estado",a.target.value)}>
-                {_.map(a=><option key={a}value={a}>{a}</option>)}
+              <select value={form.estado || ""} onChange={(e) => set("estado", e.target.value)}>
+                {ESTADOS.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
               </select>
             </label>
             <label>
               ¿Venta?
-              <select value={e.venta||""}onChange={a=>l("venta",a.target.value)}>
-                {N.map(a=><option key={a}value={a}>{a}</option>)}
+              <select value={form.venta || ""} onChange={(e) => set("venta", e.target.value)}>
+                {SI_NO.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
               </select>
             </label>
             <label>
+              Inbound / Outbound
+              <select value={form.inbound_outbound || ""} onChange={(e) => set("inbound_outbound", e.target.value)}>
+                <option value="">—</option>
+                {IN_OUT.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              ¿De dónde viene?
+              <input
+                value={form.de_donde_viene || ""}
+                onChange={(e) => set("de_donde_viene", e.target.value)}
+                placeholder="Instagram, TikTok, WhatsApp..."
+              />
+            </label>
+            <label>
               Prioridad
-              <select value={e.prioridad||""}onChange={a=>l("prioridad",a.target.value)}>
-                {C.map(a=><option key={a}value={a}>{a}</option>)}
+              <select value={form.prioridad || ""} onChange={(e) => set("prioridad", e.target.value)}>
+                {PRIORIDADES.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
               </select>
             </label>
             <label>
               Volver a contactar
-              <input type="date"value={e.volver_a_contactar||""}onChange={a=>l("volver_a_contactar",a.target.value)}/>
+              <input type="date" value={form.volver_a_contactar || ""} onChange={(e) => set("volver_a_contactar", e.target.value)} />
             </label>
             <label>
               Plan / precio acordado
-              <input value={e.plan_acordado||""}onChange={a=>l("plan_acordado",a.target.value)}/>
+              <input value={form.plan_acordado || ""} onChange={(e) => set("plan_acordado", e.target.value)} />
+            </label>
+            <label className="full">
+              ¿Qué logró el contacto?
+              <input
+                value={form.que_logro_contacto || ""}
+                onChange={(e) => set("que_logro_contacto", e.target.value)}
+                placeholder="Anuncio Instagram, AutoSetter, Bienvenida..."
+              />
             </label>
             <label className="full">
               Objeción principal
-              <textarea value={e.objeciones||""}onChange={a=>l("objeciones",a.target.value)}/>
+              <textarea value={form.objeciones || ""} onChange={(e) => set("objeciones", e.target.value)} />
             </label>
             <label className="full">
               Observaciones
-              <textarea value={e.observaciones||""}onChange={a=>l("observaciones",a.target.value)}/>
+              <textarea value={form.observaciones || ""} onChange={(e) => set("observaciones", e.target.value)} />
             </label>
             <label className="full">
               Enlace de grabación (Fathom)
-              <input value={e.fathom_url||""}onChange={a=>l("fathom_url",a.target.value)}/>
+              <input value={form.fathom_url || ""} onChange={(e) => set("fathom_url", e.target.value)} />
             </label>
           </div>
 
-          {u&&<div className="login-error">{u}</div>}
+          {error && <div className="login-error">{error}</div>}
 
           <div className="modal-actions">
-            <button type="button"className="btn btn-secondary"onClick={i}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancelar
             </button>
-            <button type="submit"className="btn btn-primary"disabled={c}>
-              {c?"Guardando...":"Guardar"}
+            <button type="submit" className="btn btn-primary" disabled={guardando}>
+              {guardando ? "Guardando..." : "Guardar"}
             </button>
           </div>
         </form>
       </div>
-    </div>}
+    </div>
+  );
+}

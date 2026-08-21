@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 
 const PRIORIDAD_CLASS = { Alta: "alta", "Media-Alta": "mediaalta", Media: "media", Baja: "baja", "Cliente activo": "cliente" };
+const IN_OUT_CLASS = { In: "alta", Out: "mediaalta" };
 
 function formatoFecha(f) {
   return f ? new Date(f + "T00:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
@@ -49,6 +50,7 @@ export default function LeadsTable({ leads, onEdit }) {
             <th>Nombre</th>
             <th>Contacto</th>
             <th>País</th>
+            <th>Origen</th>
             <th>Fecha llamada</th>
             <th>Estado</th>
             <th>Objeción / Notas</th>
@@ -72,6 +74,14 @@ export default function LeadsTable({ leads, onEdit }) {
                 )}
               </td>
               <td>{row.pais || "—"}</td>
+              <td>
+                {row.inbound_outbound ? (
+                  <span className={"pill " + (IN_OUT_CLASS[row.inbound_outbound] || "baja")}>{row.inbound_outbound}</span>
+                ) : (
+                  <span className="muted">—</span>
+                )}
+                <div className="muted">{row.de_donde_viene || "—"}</div>
+              </td>
               <td>{formatoFecha(row.fecha_llamada)}</td>
               <td>{row.estado || "—"}</td>
               <td style={{ maxWidth: 320 }}>
