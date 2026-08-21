@@ -5,7 +5,6 @@ import { supabase } from "../lib/supabaseClient";
 const ESTADOS = ["Seguimiento", "Reserva", "Reagendar", "No cliente", "No show", "Cliente"];
 const PRIORIDADES = ["Alta", "Media-Alta", "Media", "Baja", "Cliente activo"];
 const SI_NO = ["Sí", "No"];
-const IN_OUT = ["In", "Out"];
 
 const VACIO = {
   nombre: "",
@@ -127,9 +126,8 @@ export default function LeadForm({ initial, onClose, onSaved }) {
               Inbound / Outbound
               <select value={form.inbound_outbound || ""} onChange={(e) => set("inbound_outbound", e.target.value)}>
                 <option value="">—</option>
-                {IN_OUT.map((v) => (
-                  <option key={v} value={v}>{v}</option>
-                ))}
+                <option value="In">In — te contactó él/ella solo/a</option>
+                <option value="Out">Out — tú le contactaste primero</option>
               </select>
             </label>
             <label>

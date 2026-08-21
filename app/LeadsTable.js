@@ -77,7 +77,12 @@ export default function LeadsTable({ leads, onEdit }) {
               <td>{row.pais || "—"}</td>
               <td>
                 {row.inbound_outbound ? (
-                  <span className={"pill " + (IN_OUT_CLASS[row.inbound_outbound] || "baja")}>{row.inbound_outbound}</span>
+                  <span
+                    className={"pill " + (IN_OUT_CLASS[row.inbound_outbound] || "baja")}
+                    title={row.inbound_outbound === "In" ? "Te contactó él/ella solo/a" : "Tú le contactaste primero"}
+                  >
+                    {row.inbound_outbound}
+                  </span>
                 ) : (
                   <span className="muted">—</span>
                 )}
