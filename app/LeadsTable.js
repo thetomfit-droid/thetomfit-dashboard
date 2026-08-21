@@ -1,9 +1,46 @@
-"use client";import{useMemo as v,useState as l}from"react";const f={Alta:"alta","Media-Alta":"mediaalta",Media:"media",Baja:"baja","Cliente activo":"cliente"},m={Alta:0,"Media-Alta":1,Media:2,Baja:3,"Cliente activo":4};function h(e){return e?new Date(e+"T00:00:00").toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit",year:"numeric"}):"—"}export default function N({leads:e,onEdit:s}){const[o,u]=l(""),[r,b]=l("Todas"),n=v(()=>{let t=[...e];if(r!=="Todas"&&(t=t.filter(i=>i.prioridad===r)),o.trim()){const i=o.trim().toLowerCase();t=t.filter(a=>[a.nombre,a.instagram,a.pais,a.objeciones,a.observaciones].filter(Boolean).some(d=>d.toLowerCase().includes(i)))}return t.sort((i,a)=>{var d,c;return((d=m[i.prioridad])!=null?d:9)-((c=m[a.prioridad])!=null?c:9)}),t},[e,o,r]),p=["Todas","Alta","Media-Alta","Media","Baja","Cliente activo"];return<>
+"use client";
+import { useMemo, useState } from "react";
+
+const PRIORIDAD_CLASS = { Alta: "alta", "Media-Alta": "mediaalta", Media: "media", Baja: "baja", "Cliente activo": "cliente" };
+
+function formatoFecha(f) {
+  return f ? new Date(f + "T00:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+}
+
+export default function LeadsTable({ leads, onEdit }) {
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState("Todas");
+
+  const filas = useMemo(() => {
+    let t = [...leads];
+    if (filtro !== "Todas") t = t.filter((l) => l.prioridad === filtro);
+    if (busqueda.trim()) {
+      const q = busqueda.trim().toLowerCase();
+      t = t.filter((l) => [l.nombre, l.instagram, l.pais, l.objeciones, l.observaciones].filter(Boolean).some((v) => v.toLowerCase().includes(q)));
+    }
+    // Siempre en orden cronológico: la videollamada más reciente primero.
+    t.sort((a, b) => {
+      const A = a.fecha_llamada || "";
+      const B = b.fecha_llamada || "";
+      if (!A && !B) return 0;
+      if (!A) return 1;
+      if (!B) return -1;
+      return B.localeCompare(A);
+    });
+    return t;
+  }, [leads, busqueda, filtro]);
+
+  const filtros = ["Todas", "Alta", "Media-Alta", "Media", "Baja", "Cliente activo"];
+
+  return (
+    <>
       <div className="toolbar">
-        <input type="text"placeholder="Buscar por nombre, Instagram, país, objeción..."value={o}onChange={t=>u(t.target.value)}/>
-        {p.map(t=><button key={t}className={"filter-btn"+(r===t?" active":"")}onClick={()=>b(t)}>
-            {t}
-          </button>)}
+        <input type="text" placeholder="Buscar por nombre, Instagram, país, objeción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+        {filtros.map((f) => (
+          <button key={f} className={"filter-btn" + (filtro === f ? " active" : "")} onClick={() => setFiltro(f)}>
+            {f}
+          </button>
+        ))}
       </div>
 
       <table>
@@ -18,41 +55,43 @@
             <th>Plan</th>
             <th>Volver a contactar</th>
             <th>Prioridad</th>
-            <th/>
+            <th />
           </tr>
         </thead>
         <tbody>
-          {n.map(t=><tr key={t.id}>
-              <td className="name-cell">{t.nombre}</td>
+          {filas.map((row) => (
+            <tr key={row.id}>
+              <td className="name-cell">{row.nombre}</td>
               <td>
-                <div>{t.telefono||<span className="muted">—</span>}</div>
-                <div className="muted">{t.instagram||"—"}</div>
-                {t.fathom_url&&<a className="fathom-link"href={t.fathom_url}target="_blank"rel="noreferrer">
+                <div>{row.telefono || <span className="muted">—</span>}</div>
+                <div className="muted">{row.instagram || "—"}</div>
+                {row.fathom_url && (
+                  <a className="fathom-link" href={row.fathom_url} target="_blank" rel="noreferrer">
                     Ver grabación
-                  </a>}
+                  </a>
+                )}
               </td>
-              <td>{t.pais||"—"}</td>
-              <td>{h(t.fecha_llamada)}</td>
-              <td>{t.estado||"—"}</td>
-              <td style={{maxWidth:320}}>
-                {t.objeciones&&<div>{t.objeciones}</div>}
-                {t.observaciones&&<div className="muted">{t.observaciones}</div>}
-                {!t.objeciones&&!t.observaciones&&<span className="muted">—</span>}
+              <td>{row.pais || "—"}</td>
+              <td>{formatoFecha(row.fecha_llamada)}</td>
+              <td>{row.estado || "—"}</td>
+              <td style={{ maxWidth: 320 }}>
+                {row.objeciones && <div>{row.objeciones}</div>}
+                {row.observaciones && <div className="muted">{row.observaciones}</div>}
+                {!row.objeciones && !row.observaciones && <span className="muted">—</span>}
               </td>
-              <td>{t.plan_acordado||<span className="muted">—</span>}</td>
-              <td>{h(t.volver_a_contactar)}</td>
+              <td>{row.plan_acordado || <span className="muted">—</span>}</td>
+              <td>{formatoFecha(row.volver_a_contactar)}</td>
               <td>
-                <span className={"pill "+(f[t.prioridad]||"baja")}>
-                  {t.prioridad}
-                </span>
+                <span className={"pill " + (PRIORIDAD_CLASS[row.prioridad] || "baja")}>{row.prioridad}</span>
               </td>
               <td>
-                <button className="edit-link"onClick={()=>s(t)}>
-                  Editar
-                </button>
+                <button className="edit-link" onClick={() => onEdit(row)}>Editar</button>
               </td>
-            </tr>)}
+            </tr>
+          ))}
         </tbody>
       </table>
-      <div className="note-count">{n.length} de {e.length} leads</div>
-    </>}
+      <div className="note-count">{filas.length} de {leads.length} leads</div>
+    </>
+  );
+}
