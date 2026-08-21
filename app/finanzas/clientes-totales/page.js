@@ -1,11 +1,9 @@
 "use client";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import PagosTable from "../../PagosTable";
 import PagoForm from "../../PagoForm";
 import RegistrarPagoForm from "../../RegistrarPagoForm";
-
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
 function contar(lista, campo, valor) {
   return lista.filter((o) => o[campo] === valor).length;
@@ -15,18 +13,6 @@ function sumaDinero(valor) {
   if (!valor) return 0;
   const nums = String(valor).match(/\d+([.,]\d+)?/g);
   return nums ? nums.reduce((s, n) => s + parseFloat(n.replace(",", ".")), 0) : 0;
-}
-
-// El año guardado en "cumpleanos" no importa (a veces es el año real, a veces 2026
-// puesto a propósito para que Notion notificara) — solo cuentan mes y día.
-function mesDia(fechaISO) {
-  const partes = fechaISO.split("-");
-  return { mes: parseInt(partes[1], 10), dia: parseInt(partes[2], 10) };
-}
-
-function formatoCumple(fechaISO) {
-  const { mes, dia } = mesDia(fechaISO);
-  return `${dia} de ${MESES[mes - 1]}`;
 }
 
 export default function ClientesTotalesPage() {
@@ -61,13 +47,6 @@ export default function ClientesTotalesPage() {
     { label: "Clientes actuales", value: contar(pagos, "cliente_estado", "Cliente Actual"), cls: "cliente" },
   ];
 
-  const cumpleanos = useMemo(() => {
-    return pagos
-      .filter((p) => p.cumpleanos)
-      .map((p) => ({ ...p, _md: mesDia(p.cumpleanos) }))
-      .sort((a, b) => a._md.mes - b._md.mes || a._md.dia - b._md.dia);
-  }, [pagos]);
-
   return (
     <>
       <div className="topbar" style={{ marginBottom: 4 }}>
@@ -87,22 +66,6 @@ export default function ClientesTotalesPage() {
           </div>
         ))}
       </div>
-
-      {cumpleanos.length > 0 && (
-        <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", margin: "18px 0", boxShadow: "0 1px 2px #5a2d820f", maxWidth: 420 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#2e1c3d", marginBottom: 10 }}>Cumpleaños</div>
-          <table>
-            <tbody>
-              {cumpleanos.map((c) => (
-                <tr key={c.id}>
-                  <td style={{ whiteSpace: "nowrap", fontWeight: 700, color: "#2e1c3d" }}>{formatoCumple(c.cumpleanos)}</td>
-                  <td>{c.nombre}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {error && <div className="login-error" style={{ marginBottom: 12 }}>{error}</div>}
       {loading ? <div>Cargando pagos...</div> : <PagosTable pagos={pagos} onEdit={(p) => setEditingPago(p)} onRegistrarPago={(p) => setRegistrandoPago(p)} />}
