@@ -17,7 +17,7 @@ export default function LeadsTable({ leads, onEdit }) {
     if (filtro !== "Todas") t = t.filter((l) => l.prioridad === filtro);
     if (busqueda.trim()) {
       const q = busqueda.trim().toLowerCase();
-      t = t.filter((l) => [l.nombre, l.instagram, l.pais, l.objeciones, l.observaciones].filter(Boolean).some((v) => v.toLowerCase().includes(q)));
+      t = t.filter((l) => [l.nombre, l.instagram, l.correo, l.pais, l.objeciones, l.observaciones].filter(Boolean).some((v) => v.toLowerCase().includes(q)));
     }
     // Siempre en orden cronológico: la videollamada más reciente primero.
     t.sort((a, b) => {
@@ -67,6 +67,7 @@ export default function LeadsTable({ leads, onEdit }) {
               <td>
                 <div>{row.telefono || <span className="muted">—</span>}</div>
                 <div className="muted">{row.instagram || "—"}</div>
+                <div className="muted">{row.correo || "—"}</div>
                 {row.fathom_url && (
                   <a className="fathom-link" href={row.fathom_url} target="_blank" rel="noreferrer">
                     Ver grabación

@@ -11,6 +11,7 @@ const VACIO = {
   nombre: "",
   telefono: "",
   instagram: "",
+  correo: "",
   pais: "",
   fecha_contacto: "",
   fecha_llamada: "",
@@ -80,6 +81,10 @@ export default function LeadForm({ initial, onClose, onSaved }) {
             <label>
               Instagram
               <input value={form.instagram || ""} onChange={(e) => set("instagram", e.target.value)} />
+            </label>
+            <label>
+              Correo
+              <input type="email" value={form.correo || ""} onChange={(e) => set("correo", e.target.value)} />
             </label>
             <label>
               País

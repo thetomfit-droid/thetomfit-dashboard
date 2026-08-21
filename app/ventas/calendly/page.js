@@ -1,45 +1,132 @@
-"use client";const e=[{start:"2026-07-02T14:30:00Z",nombre:"Claudia Fernandez Manero",correo:"claudia_1988_28@outlook.com",whatsapp:"+34 610 20 66 35",instagram:"Claudiafdez_33",decide:"Sí"},{start:"2026-07-02T18:30:00Z",nombre:"Mathias Denzel Mendoza Jimenez",correo:"fer05se@hotmail.com",whatsapp:"+52 222 735 2888",instagram:"@roderichden",decide:"Sí"},{start:"2026-07-04T16:00:00Z",nombre:"Sarah Herrera Hernández",correo:"sarahherrerahernandez@gmail.com",whatsapp:"+34 611 15 15 64",instagram:"With_lovesarah",decide:"Sí"},{start:"2026-07-06T17:00:00Z",nombre:"Cesar Caldes",correo:"danieltoro352@gmail.com",whatsapp:"+34 687 01 04 50",instagram:"Kid_sauce_102",decide:"Sí"},{start:"2026-07-06T18:00:00Z",nombre:"Iña Ella Gil Altamirano",correo:"ellagilalt@gmail.com",whatsapp:"+52 998 300 6262",instagram:"KeysiiiKeysiii",decide:"Sí"},{start:"2026-07-07T18:00:00Z",nombre:"May",correo:"d.calomarde92@gmail.com",whatsapp:"+34 675 80 03 90",instagram:"rebeldiasilente",decide:"Sí"},{start:"2026-07-08T14:15:00Z",nombre:"Maria Cinta",correo:"mgonel@xtec.cat",whatsapp:"+34 691 13 64 66",instagram:"Tuka",decide:"Sí"},{start:"2026-07-08T23:00:00Z",nombre:"Noah Miranda",correo:"noahmiranda2119@gmail.com",whatsapp:"+52 33 1488 2797",instagram:"noahmirandx",decide:"Sí"},{start:"2026-07-10T00:30:00Z",nombre:"Karla",correo:"kparralorena123@gmail.com",whatsapp:"+1 760-587-6335",instagram:"@its.karlaaaparraaa",decide:"Sí"},{start:"2026-07-10T06:00:00Z",nombre:"Geneve",correo:"genivie@gmail.com",whatsapp:"+34 674 05 71 90",instagram:"Geneve Albanesi",decide:"No (necesita apoyo)"},{start:"2026-07-10T14:30:00Z",nombre:"Lilith",correo:"liliia1810197@gmail.com",whatsapp:"+34 650 61 24 72",instagram:"lilithmillet",decide:"No (necesita apoyo)"},{start:"2026-07-10T18:00:00Z",nombre:"David Osorio",correo:"david_osorio_lira@hotmail.com",whatsapp:"+52 477 223 2684",instagram:"David_2495",decide:"Sí"},{start:"2026-07-15T14:00:00Z",nombre:"Juan Antonio",correo:"rubiojuanantonio955@gmail.com",whatsapp:"+34 606 99 41 10",instagram:"j.antonio021997",decide:"Sí"},{start:"2026-07-24T15:00:00Z",nombre:"Odett Ramirez Tlaxcalteco",correo:"jossuuuwu@gmail.com",whatsapp:"+52 221 744 4286",instagram:"@jossuuuwu",decide:"Sí"},{start:"2026-07-27T15:00:00Z",nombre:"Mikaela",correo:"mikaaa.hg@gmail.com",whatsapp:"+34 667 79 60 18",instagram:"Mika3d_",decide:"Sí"},{start:"2026-07-29T01:00:00Z",nombre:"Annie Elisa Mendez Osorio",correo:"annieelisa94@gmail.com",whatsapp:"+52 999 475 3476",instagram:"annieelisa94@gmail.com",decide:"Sí"},{start:"2026-08-03T19:00:00Z",nombre:"Jose gabriel Rivera",correo:"josegabrielr841@gmail.com",whatsapp:"+52 55 4033 3350",instagram:"—",decide:"Sí"},{start:"2026-08-04T18:00:00Z",nombre:"andre ordonez",correo:"sofiatekelo@gmail.com",whatsapp:"+32 469 18 12 35",instagram:"—",decide:"Sí"}];function t(a){return new Date(a).toLocaleString("es-ES",{timeZone:"America/Vancouver",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}export default function r(){return<>
-      <div className="topbar"style={{marginBottom:4}}>
-        <p className="subtitle"style={{margin:0}}>Calendly conectado — @TheTomFit.</p>
+"use client";
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "../../../lib/supabaseClient";
+
+const PRIORIDAD_CLASS = { Alta: "alta", "Media-Alta": "mediaalta", Media: "media", Baja: "baja", "Cliente activo": "cliente" };
+
+function hoyISO() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function formatoFecha(fecha, hora) {
+  if (!fecha) return "—";
+  const texto = new Date(fecha + "T00:00:00").toLocaleDateString("es-ES", { weekday: "short", day: "2-digit", month: "2-digit" });
+  return hora ? texto + " · " + hora.slice(0, 5) : texto;
+}
+
+export default function CalendlyPage() {
+  const [proximas, setProximas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    const { data: eventos, error: errEventos } = await supabase
+      .from("calendario_eventos")
+      .select("*")
+      .eq("tipo", "calendly")
+      .gte("fecha", hoyISO())
+      .order("fecha", { ascending: true })
+      .order("hora_inicio", { ascending: true });
+
+    if (errEventos) {
+      setLoading(false);
+      setError("No se pudieron cargar las reservas: " + errEventos.message);
+      return;
+    }
+
+    const { data: leads, error: errLeads } = await supabase
+      .from("leads")
+      .select("calendly_uri, telefono, correo, instagram, estado, prioridad")
+      .not("calendly_uri", "is", null);
+
+    if (errLeads) {
+      setLoading(false);
+      setError("No se pudieron cargar los datos del lead: " + errLeads.message);
+      return;
+    }
+
+    const leadsPorUri = {};
+    (leads || []).forEach((l) => {
+      leadsPorUri[l.calendly_uri] = l;
+    });
+
+    const combinado = (eventos || []).map((ev) => ({
+      ...ev,
+      lead: ev.calendly_uri ? leadsPorUri[ev.calendly_uri] : null,
+    }));
+
+    setLoading(false);
+    setProximas(combinado);
+  }, []);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  return (
+    <>
+      <div className="topbar" style={{ marginBottom: 4 }}>
+        <p className="subtitle" style={{ margin: 0 }}>
+          Próximas reservas de Calendly — se sincronizan solas cada hora.
+        </p>
         <div className="topbar-actions">
-          <a className="btn btn-secondary"href="https://calendly.com/thetomfit"target="_blank"rel="noreferrer">
+          <a className="btn btn-secondary" href="https://calendly.com/thetomfit" target="_blank" rel="noreferrer">
             Abrir Calendly
           </a>
         </div>
       </div>
 
-      <div className="cards"style={{gridTemplateColumns:"repeat(2, 1fr)",maxWidth:400}}>
+      <div className="cards" style={{ gridTemplateColumns: "repeat(1, 1fr)", maxWidth: 220 }}>
         <div className="card alta">
-          <div className="label">Llamadas agendadas (snapshot)</div>
-          <div className="value">{e.length}</div>
-        </div>
-        <div className="card mediaalta">
-          <div className="label">Próximas</div>
-          <div className="value">0</div>
+          <div className="label">Próximas reservas</div>
+          <div className="value">{proximas.length}</div>
         </div>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha y hora (Vancouver)</th>
-            <th>Nombre</th>
-            <th>WhatsApp</th>
-            <th>Instagram</th>
-            <th>¿Decide?</th>
-            <th>Correo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {e.map(a=><tr key={a.start+a.correo}>
-              <td className="name-cell">{t(a.start)}</td>
-              <td>{a.nombre}</td>
-              <td>{a.whatsapp}</td>
-              <td className="muted">{a.instagram}</td>
-              <td>{a.decide}</td>
-              <td className="muted">{a.correo}</td>
-            </tr>)}
-        </tbody>
-      </table>
-      <div className="note-count">Snapshot manual — dime "actualiza Calendly".</div>
-    </>}
+      {error && <div className="login-error" style={{ marginBottom: 12 }}>{error}</div>}
+
+      {loading ? (
+        <div>Cargando reservas...</div>
+      ) : proximas.length === 0 ? (
+        <div className="note-count">No hay reservas próximas de Calendly.</div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha y hora (Vancouver)</th>
+              <th>Nombre</th>
+              <th>Contacto</th>
+              <th>Estado</th>
+              <th>Prioridad</th>
+            </tr>
+          </thead>
+          <tbody>
+            {proximas.map((ev) => (
+              <tr key={ev.id}>
+                <td className="name-cell">{formatoFecha(ev.fecha, ev.hora_inicio)}</td>
+                <td>{ev.titulo ? ev.titulo.replace("Videollamada — ", "") : "—"}</td>
+                <td>
+                  <div>{ev.lead?.telefono || <span className="muted">—</span>}</div>
+                  <div className="muted">{ev.lead?.correo || "—"}</div>
+                </td>
+                <td>{ev.lead?.estado || <span className="muted">Reserva</span>}</td>
+                <td>
+                  {ev.lead?.prioridad ? (
+                    <span className={"pill " + (PRIORIDAD_CLASS[ev.lead.prioridad] || "baja")}>{ev.lead.prioridad}</span>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div className="note-count">El detalle completo (objeciones, plan, notas) se edita en Datos de videollamadas.</div>
+    </>
+  );
+}
