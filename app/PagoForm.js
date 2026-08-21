@@ -52,7 +52,7 @@
               <input type="number"value={(v=a.numero_renovaciones)!=null?v:""}onChange={e=>o("numero_renovaciones",e.target.value)}/>
             </label>
             <label>
-              Inicio de pago
+              Inicio de pago (cuándo pagó / inició el programa)
               <input type="date"value={a.inicio_pago||""}onChange={e=>o("inicio_pago",e.target.value)}/>
             </label>
             <label>
@@ -60,7 +60,7 @@
               <input type="date"value={a.vencimiento||""}onChange={e=>o("vencimiento",e.target.value)}/>
             </label>
             <label>
-              Fecha de pago
+              Próxima fecha de pago (cuándo le toca pagar de nuevo)
               <input type="date"value={a.fecha_pago||""}onChange={e=>o("fecha_pago",e.target.value)}/>
             </label>
             <label>
