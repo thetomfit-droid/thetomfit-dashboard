@@ -15,6 +15,7 @@ const LEYENDA = [
   { tipo: "google", label: "Google Calendar" },
   { tipo: "personalizado", label: "Personal" },
   { tipo: "tarea", label: "Tarea" },
+  { tipo: "cumpleanos", label: "Cumpleaños" },
 ];
 
 function toISO(d) {
@@ -69,11 +70,19 @@ function hora(h) {
   return h ? h.slice(0, 5) : "";
 }
 
+// El año guardado en "cumpleanos" no importa (a veces es el real, a veces 2026 puesto
+// a propósito) — solo se usan mes y día para saber en qué casilla del calendario cae.
+function mesDiaDesdeISO(fechaISO) {
+  const partes = fechaISO.split("-");
+  return partes[1] + "-" + partes[2];
+}
+
 export default function CalendarioPage() {
   const [mesCursor, setMesCursor] = useState(() => inicioDeMes(new Date()));
   const [seleccionado, setSeleccionado] = useState(() => hoyISO());
   const [eventos, setEventos] = useState([]);
   const [tareas, setTareas] = useState([]);
+  const [cumpleanosClientes, setCumpleanosClientes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [editingEvento, setEditingEvento] = useState(null);
@@ -107,6 +116,27 @@ export default function CalendarioPage() {
     load();
   }, [load]);
 
+  // Los cumpleaños de clientes se cargan aparte (tabla pagos_clientes) y una sola vez:
+  // no dependen del mes que se esté mirando, porque se repiten todos los años.
+  useEffect(() => {
+    supabase
+      .from("pagos_clientes")
+      .select("id, nombre, cumpleanos")
+      .then(({ data, error: err }) => {
+        if (!err) setCumpleanosClientes((data || []).filter((c) => c.cumpleanos));
+      });
+  }, []);
+
+  const cumpleanosPorMesDia = useMemo(() => {
+    const map = {};
+    cumpleanosClientes.forEach((c) => {
+      const md = mesDiaDesdeISO(c.cumpleanos);
+      if (!map[md]) map[md] = [];
+      map[md].push(c.nombre);
+    });
+    return map;
+  }, [cumpleanosClientes]);
+
   const eventosPorDia = useMemo(() => {
     const map = {};
     eventos.forEach((e) => {
@@ -127,8 +157,24 @@ export default function CalendarioPage() {
         _tarea: t,
       });
     });
+    grilla.forEach((dia) => {
+      const nombres = cumpleanosPorMesDia[mesDiaDesdeISO(dia.fecha)];
+      if (!nombres) return;
+      if (!map[dia.fecha]) map[dia.fecha] = [];
+      nombres.forEach((nombre) => {
+        map[dia.fecha].push({
+          id: "cumple-" + nombre,
+          titulo: "🎂 Cumpleaños de " + nombre,
+          hora_inicio: null,
+          hora_fin: null,
+          tipo: "cumpleanos",
+          completado: false,
+          _source: "cumpleanos",
+        });
+      });
+    });
     return map;
-  }, [eventos, tareas]);
+  }, [eventos, tareas, grilla, cumpleanosPorMesDia]);
 
   const diasConItems = useMemo(() => new Set(Object.keys(eventosPorDia).filter((f) => eventosPorDia[f].length > 0)), [eventosPorDia]);
 
@@ -252,29 +298,35 @@ export default function CalendarioPage() {
         ) : itemsDelDia.length === 0 ? (
           <div className="muted">Sin eventos ni tareas para este día.</div>
         ) : (
-          itemsDelDia.map((item) => (
-            <div
-              key={(item._source || "evento") + "-" + item.id}
-              className={"cal-item cal-item-" + (item.tipo || "personalizado") + (item.completado ? " done" : "")}
-              onClick={() => handleEdit(item)}
-            >
-              {(item.hora_inicio || item.hora_fin) && (
-                <span className="cal-time">
-                  {hora(item.hora_inicio)}
-                  {item.hora_fin ? " – " + hora(item.hora_fin) : ""}
-                </span>
-              )}
-              <span className="cal-title">{item.titulo}</span>
-              <div className="cal-item-actions">
-                <button className="edit-link" onClick={(e) => { e.stopPropagation(); handleToggleDone(item); }}>
-                  {item.completado ? "Deshacer" : "Hecho"}
-                </button>
-                <button className="edit-link" onClick={(e) => { e.stopPropagation(); handleDelete(item); }}>
-                  Eliminar
-                </button>
+          itemsDelDia.map((item) => {
+            const esCumpleanos = item._source === "cumpleanos";
+            return (
+              <div
+                key={(item._source || "evento") + "-" + item.id}
+                className={"cal-item cal-item-" + (item.tipo || "personalizado") + (item.completado ? " done" : "")}
+                onClick={esCumpleanos ? undefined : () => handleEdit(item)}
+                style={esCumpleanos ? { cursor: "default" } : undefined}
+              >
+                {(item.hora_inicio || item.hora_fin) && (
+                  <span className="cal-time">
+                    {hora(item.hora_inicio)}
+                    {item.hora_fin ? " – " + hora(item.hora_fin) : ""}
+                  </span>
+                )}
+                <span className="cal-title">{item.titulo}</span>
+                {!esCumpleanos && (
+                  <div className="cal-item-actions">
+                    <button className="edit-link" onClick={(e) => { e.stopPropagation(); handleToggleDone(item); }}>
+                      {item.completado ? "Deshacer" : "Hecho"}
+                    </button>
+                    <button className="edit-link" onClick={(e) => { e.stopPropagation(); handleDelete(item); }}>
+                      Eliminar
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
