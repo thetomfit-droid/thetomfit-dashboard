@@ -23,7 +23,7 @@
         </div>
       </div>
       <p className="note-count"style={{marginTop:-14,marginBottom:20}}>
-        Publicidad se calcula como 5€ × {d} días de este mes. Comisiones Stripe es un snapshot que actualizo cuando lo pidas — di &quot;actualiza comisiones de Stripe&quot;. Los gastos anuales o puntuales (como Autosetter) no se cuentan en este total mensual, se muestran solo en la tabla.
+        Comisiones Stripe es un snapshot que actualizo cuando lo pidas — di &quot;actualiza comisiones de Stripe&quot;. Los gastos anuales o puntuales (como Autosetter, Gamma o el alta de autónomo) no se cuentan en este total mensual, se muestran solo en la tabla.
       </p>
 
       {m&&<div className="login-error"style={{marginBottom:12}}>{m}</div>}
