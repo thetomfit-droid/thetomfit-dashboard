@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { supabase } from "../../../../lib/supabaseClient";
-import SettingTabs from "../../../SettingTabs";
+import { supabase } from "../../../lib/supabaseClient";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -174,7 +173,6 @@ export default function Ads() {
 
   return (
     <>
-      <SettingTabs />
       <p className="subtitle" style={{ marginTop: -8 }}>
         Rendimiento semanal de ads: lo que escribes tú (bienvenidas, agendas, ventas, facturado...) calcula
         solo el ROAS, los costes y las tasas — igual que en tu Excel.

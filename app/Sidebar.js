@@ -7,6 +7,7 @@ import ThemeToggle from "./ThemeToggle";
 const ITEMS = [
   { href: "/dashboard", label: "📊 Dashboard", enabled: true, matchPrefix: "/dashboard" },
   { href: "/ventas/videollamadas", label: "📋 Ventas", enabled: true, matchPrefix: "/ventas" },
+  { href: "/setting", label: "⚙️ Setting", enabled: true, matchPrefix: "/setting" },
   { href: "/finanzas/clientes-totales", label: "💶 Finanzas", enabled: true, matchPrefix: "/finanzas" },
   { href: "/clientes/notas", label: "👥 Clientes", enabled: true, matchPrefix: "/clientes" },
   { href: "/tareas", label: "✅ Mis tareas", enabled: true, matchPrefix: "/tareas" },

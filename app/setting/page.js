@@ -1,5 +1,4 @@
 "use client";
-import SettingTabs from "../../SettingTabs";
 
 const BIENVENIDAS = [
   { fecha: "10/06/2026", n: 14 },
@@ -110,7 +109,6 @@ export default function Setting() {
 
   return (
     <>
-      <SettingTabs />
       <p className="subtitle" style={{ marginTop: -8 }}>
         Registro de bienvenidas enviadas por Instagram y biblioteca de mensajes de referencia.
       </p>
