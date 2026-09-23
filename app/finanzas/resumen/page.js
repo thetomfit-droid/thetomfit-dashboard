@@ -19,9 +19,9 @@ function diasDelMes(anio, mesIndex) {
   return new Date(anio, mesIndex + 1, 0).getDate();
 }
 
-function GraficoIngresosGastos({ meses }) {
+function GraficoIngresosGastos({ meses, onSelect }) {
   const max = Math.max(1, ...meses.flatMap((m) => [m.ingresos, m.gastos]));
-  const W = 640, H = 220, padBottom = 28, padTop = 12;
+  const W = 640, H = 250, padBottom = 46, padTop = 12;
   const chartH = H - padBottom - padTop;
   const groupW = W / meses.length;
   const barW = Math.min(26, groupW / 2 - 10);
@@ -33,7 +33,7 @@ function GraficoIngresosGastos({ meses }) {
         const hIng = (m.ingresos / max) * chartH;
         const hGas = (m.gastos / max) * chartH;
         return (
-          <g key={m.key}>
+          <g key={m.key} onClick={() => onSelect(m)} style={{ cursor: "pointer" }}>
             <rect
               x={cx - barW - 3}
               y={padTop + chartH - hIng}
@@ -54,7 +54,17 @@ function GraficoIngresosGastos({ meses }) {
             >
               <title>{`${m.label} · Gastos: ${euro(m.gastos)}`}</title>
             </rect>
-            <text x={cx} y={H - 10} textAnchor="middle" className="chart-label">
+            <text
+              x={cx}
+              y={H - padBottom + 14}
+              textAnchor="middle"
+              className="chart-label"
+              fontWeight="700"
+              fill={m.beneficio >= 0 ? "var(--brand-green)" : "var(--brand-red)"}
+            >
+              {euro(m.beneficio)}
+            </text>
+            <text x={cx} y={H - padBottom + 30} textAnchor="middle" className="chart-label">
               {m.label.split(" ")[0].slice(0, 3)}
             </text>
           </g>
@@ -64,11 +74,20 @@ function GraficoIngresosGastos({ meses }) {
   );
 }
 
+function categoriasDeMes(gastos, mes) {
+  return [
+    ...gastos.filter((x) => x.tipo === "mensual").map((x) => ({ nombre: x.concepto, monto: Number(x.monto || 0) })),
+    ...gastos.filter((x) => x.tipo === "diario").map((x) => ({ nombre: x.concepto, monto: Number(x.monto || 0) * mes.dias })),
+    ...(mes.isCurrent ? gastos.filter((x) => x.tipo === "variable").map((x) => ({ nombre: x.concepto, monto: Number(x.monto || 0) })) : []),
+  ].sort((p1, p2) => p2.monto - p1.monto);
+}
+
 export default function ResumenFinanciero() {
   const [pagos, setPagos] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const [mesSeleccionado, setMesSeleccionado] = useState(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -100,7 +119,6 @@ export default function ResumenFinanciero() {
   const totalMensual = gastos.filter((x) => x.tipo === "mensual").reduce((acc, x) => acc + Number(x.monto || 0), 0);
   const totalDiarioPorDia = gastos.filter((x) => x.tipo === "diario").reduce((acc, x) => acc + Number(x.monto || 0), 0);
   const totalVariable = gastos.filter((x) => x.tipo === "variable").reduce((acc, x) => acc + Number(x.monto || 0), 0);
-  const puntualesYAnuales = gastos.filter((x) => x.tipo === "puntual" || x.tipo === "anual");
 
   const ingresosPorMes = {};
   pagos.forEach((p) => {
@@ -125,17 +143,13 @@ export default function ResumenFinanciero() {
       gastos: gastosTotales,
       beneficio: ingresos - gastosTotales,
       isCurrent: esMesActual,
+      dias,
     });
   }
   const actual = meses[meses.length - 1];
 
-  const diasMesActual = diasDelMes(hoy.getFullYear(), hoy.getMonth());
-  const categorias = [
-    ...gastos.filter((x) => x.tipo === "mensual").map((x) => ({ nombre: x.concepto, monto: Number(x.monto || 0) })),
-    ...gastos.filter((x) => x.tipo === "diario").map((x) => ({ nombre: x.concepto, monto: Number(x.monto || 0) * diasMesActual })),
-    ...gastos.filter((x) => x.tipo === "variable").map((x) => ({ nombre: x.concepto, monto: Number(x.monto || 0) })),
-  ].sort((p1, p2) => p2.monto - p1.monto);
-  const maxCategoria = Math.max(1, ...categorias.map((c) => c.monto));
+  const categoriasModal = mesSeleccionado ? categoriasDeMes(gastos, mesSeleccionado) : [];
+  const maxCategoriaModal = Math.max(1, ...categoriasModal.map((c) => c.monto));
 
   return (
     <>
@@ -160,7 +174,7 @@ export default function ResumenFinanciero() {
 
       <div className="card" style={{ marginTop: 20, maxWidth: 900 }}>
         <div className="label" style={{ marginBottom: 12 }}>Ingresos vs Gastos (últimos 6 meses)</div>
-        <GraficoIngresosGastos meses={meses} />
+        <GraficoIngresosGastos meses={meses} onSelect={setMesSeleccionado} />
         <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
           <span className="muted" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
             <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--brand-green)", display: "inline-block" }} />
@@ -170,56 +184,49 @@ export default function ResumenFinanciero() {
             <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--brand-red)", display: "inline-block" }} />
             Gastos
           </span>
+          <span className="muted" style={{ fontSize: 12 }}>· Haz clic en un mes para ver el detalle</span>
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 20, maxWidth: 620 }}>
-        <div className="label" style={{ marginBottom: 12 }}>Desglose de gastos de {actual.label}</div>
-        {categorias.map((cat) => (
-          <div key={cat.nombre} className="gasto-cat-row">
-            <div className="gasto-cat-info">
-              <span>{cat.nombre}</span>
-              <span style={{ fontWeight: 700 }}>{euro(cat.monto)}</span>
+      {mesSeleccionado && (
+        <div className="modal-backdrop" onClick={() => setMesSeleccionado(null)}>
+          <div className="modal-card" style={{ width: 440 }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ textTransform: "capitalize" }}>{mesSeleccionado.label}</h2>
+
+            <div className="cards" style={{ gridTemplateColumns: "1fr", gap: 10, marginBottom: 22 }}>
+              <div className="card alta">
+                <div className="label">Ingresos</div>
+                <div className="value">{euro(mesSeleccionado.ingresos)}</div>
+              </div>
+              <div className="card baja2">
+                <div className="label">Gastos recurrentes</div>
+                <div className="value">{euro(mesSeleccionado.gastos)}</div>
+              </div>
+              <div className={"card " + (mesSeleccionado.beneficio >= 0 ? "cliente" : "baja2")}>
+                <div className="label">Beneficio estimado</div>
+                <div className="value">{euro(mesSeleccionado.beneficio)}</div>
+              </div>
             </div>
-            <div className="gasto-cat-track">
-              <div className="gasto-cat-fill" style={{ width: (cat.monto / maxCategoria) * 100 + "%" }} />
+
+            <div className="label" style={{ marginBottom: 10 }}>Desglose de gastos</div>
+            {categoriasModal.map((cat) => (
+              <div key={cat.nombre} className="gasto-cat-row">
+                <div className="gasto-cat-info">
+                  <span>{cat.nombre}</span>
+                  <span style={{ fontWeight: 700 }}>{euro(cat.monto)}</span>
+                </div>
+                <div className="gasto-cat-track">
+                  <div className="gasto-cat-fill" style={{ width: (cat.monto / maxCategoriaModal) * 100 + "%" }} />
+                </div>
+              </div>
+            ))}
+
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setMesSeleccionado(null)}>
+                Cerrar
+              </button>
             </div>
           </div>
-        ))}
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Mes</th>
-            <th>Ingresos</th>
-            <th>Gastos recurrentes</th>
-            <th>Beneficio estimado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {meses.map((m) => (
-            <tr key={m.key}>
-              <td className="name-cell">{m.label}{m.isCurrent ? " (actual)" : ""}</td>
-              <td>{euro(m.ingresos)}</td>
-              <td>{euro(m.gastos)}</td>
-              <td style={{ fontWeight: 700, color: m.beneficio >= 0 ? "#345640" : "#8a2c2c" }}>
-                {euro(m.beneficio)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {puntualesYAnuales.length > 0 && (
-        <div className="card" style={{ marginTop: 20, maxWidth: 620 }}>
-          <div className="label">Gastos puntuales / anuales (no incluidos arriba)</div>
-          {puntualesYAnuales.map((g) => (
-            <div key={g.id} style={{ fontSize: 13, marginTop: 8 }}>
-              <strong>{g.concepto}</strong> — {euro(g.monto)}
-              {g.notas && <span className="muted"> · {g.notas}</span>}
-            </div>
-          ))}
         </div>
       )}
 
@@ -227,9 +234,7 @@ export default function ResumenFinanciero() {
         Los ingresos se calculan sumando cada pago individual registrado (no el total acumulado de cada
         cliente), para que las cuotas cuenten solo en el mes en que se pagaron. Los pagos de Stripe se
         registran solos; los que recibas por transferencia u otro medio regístralos con el botón
-        &quot;+ Pago&quot; en Clientes totales. Meses anteriores a esta corrección pueden verse en €0 si
-        no tienen pagos registrados en el historial todavía — dime si quieres que reconstruyamos algunos
-        meses pasados con los datos que me des. Las comisiones de Stripe solo están sumadas en el mes
+        &quot;+ Pago&quot; en Clientes totales. Las comisiones de Stripe solo están sumadas en el mes
         actual por ahora.
       </p>
     </>
