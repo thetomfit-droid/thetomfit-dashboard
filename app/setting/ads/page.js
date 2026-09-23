@@ -244,7 +244,7 @@ export default function Ads() {
               </tr>
             ))}
             {filasDerivadas.map((fd) => (
-              <tr key={fd.key} style={{ background: "#fbf6fa" }}>
+              <tr key={fd.key} className="fila-derivada">
                 <td className="name-cell muted">{fd.label}</td>
                 {semanasDelMes.map((s) => {
                   const d = calcularDerivados(s);
