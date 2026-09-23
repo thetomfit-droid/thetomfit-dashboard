@@ -3,8 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/ventas/setting", label: "Setting" },
-  { href: "/ventas/setting/ads", label: "Ads" },
+  { href: "/setting", label: "Setting" },
+  { href: "/setting/ads", label: "Ads" },
 ];
 
 export default function SettingTabs() {
