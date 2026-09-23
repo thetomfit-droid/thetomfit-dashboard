@@ -6,6 +6,7 @@ const TABS = [
   { href: "/ventas/videollamadas", label: "Datos de videollamadas" },
   { href: "/ventas/recontactar", label: "Recontactar" },
   { href: "/ventas/calendly", label: "Calendly" },
+  { href: "/ventas/setting", label: "Setting" },
 ];
 
 export default function VentasTabs() {
