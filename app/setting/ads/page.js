@@ -64,6 +64,24 @@ function sumarSemanas(semanas) {
   return total;
 }
 
+function diasDelMes(anio, mes) {
+  return new Date(anio, mes, 0).getDate();
+}
+
+function rangoSemanaFija(anio, mes, semana) {
+  const ultimo = diasDelMes(anio, mes);
+  const inicios = [1, 8, 15, 22, 29];
+  const fines = [7, 14, 21, 28, ultimo];
+  const inicio = inicios[semana - 1];
+  if (inicio > ultimo) return null;
+  const fin = Math.min(fines[semana - 1], ultimo);
+  return { inicio, fin };
+}
+
+function fechaISO(anio, mes, dia) {
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
 export default function Ads() {
   const anioActual = new Date().getFullYear();
   const mesActualIdx = new Date().getMonth();
@@ -73,6 +91,7 @@ export default function Ads() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [guardandoClave, setGuardandoClave] = useState("");
+  const [autoCargando, setAutoCargando] = useState(false);
 
   const cargar = useCallback(async (a) => {
     setCargando(true);
@@ -140,6 +159,67 @@ export default function Ads() {
     else cargar(anio);
   }
 
+  async function autocompletar() {
+    setAutoCargando(true);
+    setError("");
+    const ultimoDia = diasDelMes(anio, mesSel);
+    const desde = fechaISO(anio, mesSel, 1);
+    const hasta = fechaISO(anio, mesSel, ultimoDia);
+
+    const [bRes, pcRes, phRes] = await Promise.all([
+      supabase.from("bienvenidas_diarias").select("fecha,cantidad").gte("fecha", desde).lte("fecha", hasta),
+      supabase.from("pagos_clientes").select("dinero_recolectado,inicio_pago").gte("inicio_pago", desde).lte("inicio_pago", hasta),
+      supabase.from("pagos_historial").select("monto,fecha").gte("fecha", desde).lte("fecha", hasta),
+    ]);
+    const errPrimero = bRes.error || pcRes.error || phRes.error;
+    if (errPrimero) {
+      setError("No se pudo autocompletar: " + errPrimero.message);
+      setAutoCargando(false);
+      return;
+    }
+
+    for (let s = 1; s <= 5; s++) {
+      const rango = rangoSemanaFija(anio, mesSel, s);
+      const actual = semanasDelMes.find((f) => f.semana === s) || semanaVacia(mesSel, s);
+      if (!rango) continue;
+      const desdeS = fechaISO(anio, mesSel, rango.inicio);
+      const hastaS = fechaISO(anio, mesSel, rango.fin);
+
+      const bienvenidasSemana = (bRes.data || [])
+        .filter((x) => x.fecha >= desdeS && x.fecha <= hastaS)
+        .reduce((acc, x) => acc + Number(x.cantidad || 0), 0);
+
+      const ventasFilas = (pcRes.data || []).filter((x) => x.inicio_pago >= desdeS && x.inicio_pago <= hastaS);
+      const facturadoSemana = ventasFilas.reduce((acc, x) => acc + Number(x.dinero_recolectado || 0), 0);
+      const ventasSemana = ventasFilas.length;
+
+      const cashSemana = (phRes.data || [])
+        .filter((x) => x.fecha >= desdeS && x.fecha <= hastaS)
+        .reduce((acc, x) => acc + Number(x.monto || 0), 0);
+
+      const payload = {
+        anio,
+        mes: mesSel,
+        semana: s,
+        rango: `${rango.inicio}-${rango.fin}`,
+        bienvenidas: bienvenidasSemana,
+        conversaciones: Number(actual.conversaciones || 0),
+        agendas: Number(actual.agendas || 0),
+        llamadas_realizadas: Number(actual.llamadas_realizadas || 0),
+        canceladas: Number(actual.canceladas || 0),
+        no_show: Number(actual.no_show || 0),
+        ventas: ventasSemana,
+        facturado: facturadoSemana,
+        cash_cobrado: cashSemana,
+        inversion_ads: Number(actual.inversion_ads || 0),
+      };
+      await supabase.from("ads_semanal").upsert(payload, { onConflict: "anio,mes,semana" });
+    }
+
+    setAutoCargando(false);
+    cargar(anio);
+  }
+
   const filasPorMes = useMemo(() => {
     const mapa = {};
     for (let m = 1; m <= 12; m++) {
@@ -203,7 +283,18 @@ export default function Ads() {
       {cargando && <div className="muted" style={{ marginBottom: 10 }}>Cargando...</div>}
 
       <div className="card" style={{ marginTop: 10, overflowX: "auto" }}>
-        <div className="label" style={{ marginBottom: 12 }}>{MESES[mesSel - 1]} {anio}</div>
+        <div className="toolbar" style={{ justifyContent: "space-between", marginBottom: 4 }}>
+          <div className="label" style={{ marginBottom: 0 }}>{MESES[mesSel - 1]} {anio}</div>
+          <button type="button" className="btn btn-secondary" onClick={autocompletar} disabled={autoCargando}>
+            {autoCargando ? "Autocompletando..." : "🔄 Autocompletar bienvenidas / facturado / ventas / cash"}
+          </button>
+        </div>
+        <p className="note-count" style={{ marginTop: 0, marginBottom: 12 }}>
+          Trae bienvenidas desde Setting, y facturado/ventas/cash cobrado desde Clientes totales y Finanzas,
+          usando semanas fijas (1-7, 8-14, 15-21, 22-28, 29-fin). No toca conversaciones, agendas, llamadas,
+          canceladas, no show ni inversión en ads — esos se quedan como los escribas tú. Puedes corregir a
+          mano cualquier valor después de autocompletar.
+        </p>
         <table>
           <thead>
             <tr>
