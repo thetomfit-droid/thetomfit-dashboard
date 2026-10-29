@@ -16,7 +16,12 @@ const fredoka = Fredoka({
 export const metadata = {
   title: "THETOMFIT — Panel de control",
   description: "Panel de ventas, finanzas y seguimiento de clientes de THETOMFIT",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "THETOMFIT", statusBarStyle: "default" },
 };
+
+export const viewport = { themeColor: "#3d2154" };
 
 export default function RootLayout({ children }) {
   return (

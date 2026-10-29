@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoMark from "./LogoMark";
 import ThemeToggle from "./ThemeToggle";
+import AvisosCumples from "./AvisosCumples";
 
 const ITEMS = [
   { href: "/dashboard", label: "📊 Dashboard", enabled: true, matchPrefix: "/dashboard" },
@@ -41,6 +42,7 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="sidebar-footer">
+        <AvisosCumples />
         <ThemeToggle />
       </div>
     </aside>
